@@ -1,4 +1,4 @@
-# AI-Placement-As# AI Placement Assistant
+# AI Placement Assistant
 
 An AI-powered web application that analyzes resumes and helps students prepare for placements.
 
@@ -41,5 +41,3 @@ An AI-powered web application that analyzes resumes and helps students prepare f
 ## Author
 
 Thanuja Sarreddy
-sistant
-AI-powered resume analysis and placement assistant
