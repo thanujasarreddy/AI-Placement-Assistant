@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Placement Assistant</title>
+</head>
+<body>
+    <h1>Resume Analyzer 🚀</h1>
+
+    <textarea id="resume" rows="10" cols="50" placeholder="Paste your resume here"></textarea>
+    <br><br>
+
+    <button onclick="analyze()">Analyze Resume</button>
+
+    <h3>Result:</h3>
+    <pre id="output"></pre>
+
+    <script>
+        function analyze() {
+            let resume = document.getElementById("resume").value;
+
+            fetch("/upload_resume", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ resume: resume })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("output").innerText =
+                    JSON.stringify(data, null, 2);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<title>AI Placement Dashboard</title>
+
+<style>
+
+body {
+    margin: 0;
+    font-family: Arial;
+    background: #f4f7fb;
+    display: flex;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 220px;
+    height: 100vh;
+    background: #0a66c2;
+    color: white;
+    padding: 20px;
+    position: fixed;
+}
+
+.sidebar h2 {
+    font-size: 18px;
+    margin-bottom: 30px;
+}
+
+.sidebar a {
+    display: block;
+    color: white;
+    text-decoration: none;
+    margin: 15px 0;
+    font-size: 15px;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.sidebar a:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+/* MAIN AREA */
+.main {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+}
+
+/* HEADER */
+.header {
+    background: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* CARDS */
+.container {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.card {
+    background: white;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    transition: 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.score {
+    font-size: 20px;
+    font-weight: bold;
+    color: #0a66c2;
+}
+
+.role {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.skills {
+    color: #555;
+    margin-top: 5px;
+}
+
+.time {
+    font-size: 12px;
+    color: gray;
+    margin-top: 5px;
+}
+
+.btn {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #0a66c2;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+
+<div class="sidebar">
+    <h2>🚀 AI Placement</h2>
+
+```
+<a href="/dashboard">Dashboard</a>
+<a href="/upload_page">Upload Resume</a>
+<a href="/ats_page">ATS Analyzer</a>
+<a href="/analytics_page">Analytics</a>
+<a href="/history_page">History</a>
+<a href="/logout">Logout</a>
+```
+
+</div>
+
+<!-- MAIN -->
+
+<div class="main">
+
+
+<div class="header">
+    <div>📊 My AI Dashboard</div>
+    <div>Welcome User</div>
+</div>
+
+<div class="container" id="data"></div>
+
+
+</div>
+
+<script>
+
+fetch("/history")
+.then(res => res.json())
+.then(data => {
+
+    let html = "";
+
+    if(data.error){
+        document.getElementById("data").innerHTML =
+            "<div class='card'><h3>Please login first</h3></div>";
+        return;
+    }
+
+    if(data.length === 0){
+        html = `
+            <div class="card">
+                <h3>No resume history found</h3>
+                <p>Upload your first resume to get started.</p>
+            </div>
+        `;
+    }
+    else{
+        data.forEach(item => {
+
+            html += `
+            <div class="card">
+                <div class="role">${item.role}</div>
+                <div class="score">Score: ${item.score}%</div>
+                <div class="skills">Skills: ${item.skills}</div>
+                <div class="time">${item.timestamp}</div>
+                <a class="btn" href="/analytics_page">View Analytics</a>
+            </div>
+            `;
+        });
+    }
+
+    document.getElementById("data").innerHTML = html;
+});
+
+</script>
+
+</body>
+</html>
+

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<title>ATS Analyzer</title>
+
+<style>
+
+body{
+    margin:0;
+    font-family: Arial;
+    background:#f4f7fb;
+}
+
+/* HEADER */
+.header{
+    background:#0a66c2;
+    color:white;
+    padding:15px;
+    display:flex;
+    justify-content:space-between;
+}
+
+/* CONTAINER */
+.container{
+    max-width:900px;
+    margin:auto;
+    padding:30px;
+}
+
+/* CARD */
+.card{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* TEXTAREA */
+textarea{
+    width:100%;
+    height:180px;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #ccc;
+}
+
+/* BUTTON */
+button{
+    margin-top:15px;
+    padding:12px 20px;
+    border:none;
+    background:#0a66c2;
+    color:white;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+/* RESULT */
+.result{
+    margin-top:20px;
+}
+
+/* SCORE BADGE */
+.score{
+    font-size:28px;
+    font-weight:bold;
+    color:#0a66c2;
+}
+
+/* SKILLS */
+.match{
+    color:green;
+}
+
+.missing{
+    color:red;
+}
+
+/* PROGRESS BAR */
+.bar-container{
+    background:#eee;
+    border-radius:10px;
+    overflow:hidden;
+    margin-top:10px;
+}
+
+.bar{
+    height:10px;
+    background:#0a66c2;
+    width:0%;
+    transition:0.5s;
+}
+
+a{
+    color:white;
+    text-decoration:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+    <h2>🎯 ATS Analyzer</h2>
+    <a href="/dashboard">Dashboard</a>
+</div>
+
+<div class="container">
+
+<div class="card">
+
+```
+<h3>Paste Job Description</h3>
+
+<textarea id="jobdesc"></textarea>
+
+<button onclick="checkATS()">Analyze ATS Score</button>
+
+<div class="result" id="result"></div>
+```
+
+</div>
+
+</div>
+
+<script>
+
+function checkATS(){
+
+    const jd = document.getElementById("jobdesc").value;
+
+    const skills = ["python","java","c","html","css","javascript","ai"];
+
+    fetch("/ats_match",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            skills:skills,
+            job_description:jd
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        document.getElementById("result").innerHTML = `
+            <div class="score">ATS Score: ${data.ats_score}%</div>
+
+            <div class="bar-container">
+                <div class="bar" style="width:${data.ats_score}%"></div>
+            </div>
+
+            <h3 class="match">Matched Skills</h3>
+            <p>${data.matched_skills.join(", ")}</p>
+
+            <h3 class="missing">Missing Skills</h3>
+            <p>${data.missing_skills.join(", ")}</p>
+        `;
+    });
+
+}
+
+</script>
+
+</body>
+</html>
+
+

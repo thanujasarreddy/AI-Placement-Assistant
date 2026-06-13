@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>AI Career SaaS</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: "Inter", Arial;
+    background: #f4f7fb;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 220px;
+    height: 100vh;
+    position: fixed;
+    background: #0f172a;
+    color: white;
+    padding: 20px;
+}
+
+.sidebar h2 {
+    font-size: 18px;
+}
+
+.nav-item {
+    margin: 15px 0;
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.nav-item:hover {
+    opacity: 1;
+}
+
+/* MAIN AREA */
+.main {
+    margin-left: 240px;
+    padding: 20px;
+    overflow_y: auto;
+}
+
+/* TOP BAR */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    margin-top: 15px;
+}
+
+/* GRID */
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* ATS GAUGE */
+.gauge {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: conic-gradient(#0a66c2 0deg, #eee 0deg);
+    font-weight: bold;
+    font-size: 22px;
+}
+
+.gauge-fill {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 10px solid #0a66c2;
+    clip: rect(0, 120px, 120px, 60px);
+    transform: rotate(0deg);
+    transition: 1s;
+}
+
+/* JOB BARS */
+.bar {
+    margin: 10px 0;
+}
+
+.bar-bg {
+    height: 10px;
+    background: #eee;
+    border-radius: 10px;
+}
+
+.bar-fill {
+    height: 10px;
+    width: 0%;
+    background: linear-gradient(90deg,#4facfe,#00f2fe);
+    border-radius: 10px;
+    transition: 1s;
+}
+
+button {
+    background: #0a66c2;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+input {
+    margin-top: 10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <h2>AI SaaS</h2>
+    <div class="nav-item">📊 Dashboard</div>
+    <div class="nav-item">📄 Resume Analyzer</div>
+    <div class="nav-item">💼 Jobs</div>
+    <div class="nav-item">⚙ Settings</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<div class="topbar">
+    <h2>Dashboard</h2>
+    <input type="file" id="file">
+    <button onclick="uploadResume()">Analyze Resume</button>
+    <div id="result"></div>
+
+
+</div>
+
+<div class="grid">
+
+    <div class="card">
+        <h3>ATS Score</h3>
+        <div id="gauge" class="gauge"></div>
+    </div>
+
+    <div class="card">
+        <h3>Skills</h3>
+        <div id="skills"></div>
+    </div>
+
+</div>
+
+<div class="card">
+    <h3>Job Probability</h3>
+    <div id="jobs"></div>
+</div>
+
+
+<div class="card">
+    <h3>🎤 AI Interview Preparation</h3>
+    <p>Practice these questions based on your resume skills.</p>
+    <div id="questions"></div>
+</div>
+
+<div class="card">
+    <h3>💡 Resume Improvement Suggestions</h3>
+    <div id="suggestions"></div>
+</div>
+</div>
+<script>
+function uploadResume() {
+
+    let fileInput = document.getElementById("file");
+
+    if (!fileInput.files[0]) {
+        alert("Select a file first");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    fetch("/upload_pdf", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log(data);
+        // JOBS
+        renderJobs(data.job_recommendations);
+
+        // ROLE SCORES
+        showRoles(data.role_scores);
+
+        console.log(data);
+        console.log(data.interview_questions);
+        console.log(data.resume_suggestions);
+        let score = data.resume_score;
+
+        document.getElementById("gauge").style.background =
+           `conic-gradient(#0a66c2 ${score * 3.6}deg, #eee 0deg)`;
+
+        document.getElementById("gauge").innerHTML =
+           `<h2 style="text-align:center;line-height:100px;">${score}%</h2>`;
+
+
+        console.log(data);
+
+        // ATS SCORE GAUGE
+        document.getElementById("result").innerHTML =
+            `<h3>Role: ${data.predicted_role}</h3>
+             <p>ATS Score: ${data.resume_score}%</p>`;
+
+        // SKILLS
+        document.getElementById("skills").innerHTML =
+            data.skills_found.map(s => `• ${s}`).join("<br>");
+        let qhtml=" ";
+        data.interview_questions.forEach((q, index) => {
+
+            qhtml += `
+            <div style="
+                background:#f8fafc;
+                padding:12px;
+                margin-bottom:10px;
+                border-left:5px solid #0a66c2;
+                border-radius:8px;
+            ">
+                <b>Question ${index + 1}</b>
+                <p>${q}</p>
+            </div>
+            `;
+        });
+
+        document.getElementById("questions").innerHTML = qhtml;
+
+        let shtml = "";
+
+        data.resume_suggestions.forEach(s => {
+            shtml += `<p>• ${s}</p>`;
+        });
+
+        document.getElementById("suggestions").innerHTML = shtml;
+        
+        
+    })
+    .catch(err => {
+        console.log(err);
+        alert("Upload failed");
+    });
+  
+    
+
+    data.interview_questions.forEach((q, index) => {
+
+        qhtml += `
+        <div style="
+            background:#f8fafc;
+            padding:12px;
+            margin-bottom:10px;
+            border-left:5px solid #0a66c2;
+            border-radius:8px;
+        ">
+            <b>Question ${index + 1}</b>
+            <p>${q}</p>
+        </div>
+        `;
+    });
+
+    document.getElementById("questions").innerHTML = qhtml;
+
+    let shtml = "";
+
+    data.resume_suggestions.forEach(s => {
+        shtml += `<p>• ${s}</p>`;
+    });
+
+    document.getElementById("suggestions").innerHTML = shtml;
+
+
+}
+
+// JOB CARDS
+function renderJobs(jobs){
+
+    let html = "";
+
+    jobs.forEach(job => {
+        html += `
+        <div style="background:white;padding:15px;margin-top:10px;border-radius:10px;">
+            <h3>💼 ${job.title}</h3>
+            <p>🏢 ${job.company}</p>
+            <p>📍 ${job.location}</p>
+            <p>💰 ${job.salary}</p>
+            <p>🎯 ${job.skills.join(", ")}</p>
+        </div>`;
+    });
+
+    document.getElementById("jobs").innerHTML = html;
+}
+
+// ROLE SCORES
+function showRoles(roleScores){
+
+    let html = "";
+
+    for (let role in roleScores){
+        html += `<p>${role} - ${roleScores[role]}%</p>`;
+    }
+
+    document.getElementById("roles").innerHTML = html;
+}
+</script>
+<div id="jobs"></div>
+
+<script>
+function renderJobs(jobs){
+
+    let html = "";
+
+    jobs.forEach(job => {
+
+        html += `
+        <div style="background:white;padding:15px;margin-top:15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+
+            <h3>💼 ${job.title}</h3>
+            <p>🏢 ${job.company}</p>
+            <p>📍 ${job.location}</p>
+            <p>💰 ${job.salary}</p>
+            <p>🎯 ${job.skills.join(", ")}</p>
+
+        </div>
+        `;
+    });
+
+    document.getElementById("jobs").innerHTML = html;
+}
+</script>
+<div id="roles"></div>
+
+<script>
+function showRoles(roleScores){
+
+    let html = "";
+
+    for (let role in roleScores){
+
+        html += `
+            <div>
+                ${role} - ${roleScores[role]}%
+            </div>
+        `;
+    }
+
+    document.getElementById("roles").innerHTML = html;
+}
+</script>
+</body>
+</html>

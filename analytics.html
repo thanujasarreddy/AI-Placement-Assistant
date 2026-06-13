@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<title>Analytics Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+    font-family: Arial;
+    margin:0;
+    background:#f4f7fb;
+}
+
+/* HEADER */
+.header{
+    background:#0a66c2;
+    color:white;
+    padding:15px;
+    display:flex;
+    justify-content:space-between;
+}
+
+/* CONTAINER */
+.container{
+    padding:30px;
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap:20px;
+}
+
+/* CARD */
+.card{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* STATS CARDS */
+.stat-box{
+    display:flex;
+    justify-content:space-around;
+    margin-bottom:20px;
+}
+
+.stat{
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    width:30%;
+    text-align:center;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stat h3{
+    margin:0;
+    color:#0a66c2;
+}
+
+.stat p{
+    margin:5px 0 0;
+    font-size:14px;
+    color:gray;
+}
+
+canvas{
+    margin-top:20px;
+}
+
+a{
+    color:white;
+    text-decoration:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+    <h2>📈 Analytics Dashboard</h2>
+    <a href="/dashboard">Dashboard</a>
+</div>
+
+<div class="container">
+
+
+<!-- STATS -->
+<div class="card" style="grid-column: span 3;">
+
+    <div class="stat-box">
+
+        <div class="stat">
+            <h3 id="total">0</h3>
+            <p>Total Resumes</p>
+        </div>
+
+        <div class="stat">
+            <h3 id="avg">0</h3>
+            <p>Average Score</p>
+        </div>
+
+        <div class="stat">
+            <h3 id="best">0</h3>
+            <p>Best Score</p>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- LINE CHART -->
+<div class="card">
+    <h3>Resume Score Progress</h3>
+    <canvas id="scoreChart"></canvas>
+</div>
+
+<!-- BAR CHART -->
+<div class="card">
+    <h3>Role Distribution</h3>
+    <canvas id="roleChart"></canvas>
+</div>
+
+
+</div>
+
+<script>
+
+fetch("/analytics")
+.then(res => res.json())
+.then(data => {
+
+    // ---------------- LINE CHART ----------------
+    new Chart(document.getElementById("scoreChart"), {
+        type: "line",
+        data: {
+            labels: data.dates,
+            datasets: [{
+                label: "Resume Score",
+                data: data.scores,
+                borderColor: "#0a66c2",
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { min: 0, max: 100 }
+            }
+        }
+    });
+
+    // ---------------- ROLE COUNT ----------------
+    let roleCount = {};
+
+    data.roles.forEach(r => {
+        roleCount[r] = (roleCount[r] || 0) + 1;
+    });
+
+    new Chart(document.getElementById("roleChart"), {
+        type: "bar",
+        data: {
+            labels: Object.keys(roleCount),
+            datasets: [{
+                label: "Predicted Roles",
+                data: Object.values(roleCount),
+                backgroundColor: "#0a66c2"
+            }]
+        }
+    });
+
+    // ---------------- STATS ----------------
+    let total = data.scores.length;
+    let avg = (data.scores.reduce((a,b)=>a+b,0) / total).toFixed(1);
+    let best = Math.max(...data.scores);
+
+    document.getElementById("total").innerText = total;
+    document.getElementById("avg").innerText = avg;
+    document.getElementById("best").innerText = best;
+
+});
+
+</script>
+
+</body>
+</html>
+
