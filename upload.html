@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Career SaaS</title>
-
 <style>
 body {
     margin: 0;
@@ -38,7 +38,7 @@ body {
 .main {
     margin-left: 240px;
     padding: 20px;
-    overflow_y: auto;
+    overflow-y: auto;
 }
 
 /* TOP BAR */
@@ -117,7 +117,49 @@ button {
 input {
     margin-top: 10px;
 }
+.topbar-premium{
+    background: linear-gradient(135deg,#0a66c2,#4facfe);
+    color:white;
+    padding:30px;
+    border-radius:20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.15);
+}
 
+.topbar-premium h1{
+    margin:0;
+    font-size:32px;
+}
+
+.topbar-premium p{
+    margin-top:10px;
+    opacity:0.9;
+    max-width:600px;
+}
+
+.upload-box{
+    background:white;
+    padding:20px;
+    border-radius:15px;
+    text-align:center;
+}
+
+.upload-box input{
+    margin-bottom:10px;
+}
+
+.upload-box button{
+    width:100%;
+    background:#0a66c2;
+    color:white;
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    font-weight:bold;
+}
 </style>
 </head>
 
@@ -135,14 +177,27 @@ input {
 <!-- MAIN -->
 <div class="main">
 
-<div class="topbar">
-    <h2>Dashboard</h2>
-    <input type="file" id="file">
-    <button onclick="uploadResume()">Analyze Resume</button>
-    <div id="result"></div>
+<div class="topbar-premium">
 
+    <div>
+        <h1>🚀 AI Placement Assistant</h1>
+        <p>
+            Upload your resume and get ATS analysis,
+            role prediction, job recommendations,
+            interview questions, and improvement suggestions.
+        </p>
+    </div>
+
+    <div class="upload-box">
+        <input type="file" id="file">
+        <button onclick="uploadResume()">
+            📄 Analyze Resume
+        </button>
+    </div>
 
 </div>
+
+<div id="result"></div>
 
 <div class="grid">
 
@@ -160,7 +215,9 @@ input {
 
 <div class="card">
     <h3>Job Probability</h3>
+    <div id="roles"></div>
     <div id="jobs"></div>
+    
 </div>
 
 
@@ -173,9 +230,15 @@ input {
 <div class="card">
     <h3>💡 Resume Improvement Suggestions</h3>
     <div id="suggestions"></div>
+    <br>
+
+    <button onclick="downloadReport()">
+        📄 Download PDF Report
+    </button>
 </div>
 </div>
 <script>
+let currentData = {};
 function uploadResume() {
 
     let fileInput = document.getElementById("file");
@@ -194,7 +257,9 @@ function uploadResume() {
     })
     .then(res => res.json())
     .then(data => {
-        console.log(data);
+        currentData = data;
+        console.log("RESPONSE DATA:", data);
+
         // JOBS
         renderJobs(data.job_recommendations);
 
@@ -242,51 +307,29 @@ function uploadResume() {
 
         document.getElementById("questions").innerHTML = qhtml;
 
-        let shtml = "";
+        let shtml= "";
 
         data.resume_suggestions.forEach(s => {
             shtml += `<p>• ${s}</p>`;
         });
 
         document.getElementById("suggestions").innerHTML = shtml;
-        
-        
+
+
+        if (data.status === "success") {
+            alert("Upload successful");
+        }
+        else{
+            alert("Upload failed");
+        }
     })
     .catch(err => {
-        console.log(err);
-        alert("Upload failed");
+        console.error("FULL ERROR:", err);
+        alert("Upload failed: " + err);
     });
   
-    
 
-    data.interview_questions.forEach((q, index) => {
-
-        qhtml += `
-        <div style="
-            background:#f8fafc;
-            padding:12px;
-            margin-bottom:10px;
-            border-left:5px solid #0a66c2;
-            border-radius:8px;
-        ">
-            <b>Question ${index + 1}</b>
-            <p>${q}</p>
-        </div>
-        `;
-    });
-
-    document.getElementById("questions").innerHTML = qhtml;
-
-    let shtml = "";
-
-    data.resume_suggestions.forEach(s => {
-        shtml += `<p>• ${s}</p>`;
-    });
-
-    document.getElementById("suggestions").innerHTML = shtml;
-
-
-}
+    }
 
 // JOB CARDS
 function renderJobs(jobs){
@@ -300,7 +343,15 @@ function renderJobs(jobs){
             <p>🏢 ${job.company}</p>
             <p>📍 ${job.location}</p>
             <p>💰 ${job.salary}</p>
-            <p>🎯 ${job.skills.join(", ")}</p>
+            <p>
+            <b>Required Skills:</b><br>
+            ${(job.required_skills || []).join(", ")}
+            </p>
+
+            <p style="color:red;">
+            <b>Missing Skills:</b><br>
+            ${(job.missing_skills || []).join(", ") || "None"}
+            </p>
         </div>`;
     });
 
@@ -308,44 +359,13 @@ function renderJobs(jobs){
 }
 
 // ROLE SCORES
-function showRoles(roleScores){
 
-    let html = "";
 
-    for (let role in roleScores){
-        html += `<p>${role} - ${roleScores[role]}%</p>`;
-    }
 
-    document.getElementById("roles").innerHTML = html;
-}
+
+
+
 </script>
-<div id="jobs"></div>
-
-<script>
-function renderJobs(jobs){
-
-    let html = "";
-
-    jobs.forEach(job => {
-
-        html += `
-        <div style="background:white;padding:15px;margin-top:15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-
-            <h3>💼 ${job.title}</h3>
-            <p>🏢 ${job.company}</p>
-            <p>📍 ${job.location}</p>
-            <p>💰 ${job.salary}</p>
-            <p>🎯 ${job.skills.join(", ")}</p>
-
-        </div>
-        `;
-    });
-
-    document.getElementById("jobs").innerHTML = html;
-}
-</script>
-<div id="roles"></div>
-
 <script>
 function showRoles(roleScores){
 
@@ -361,6 +381,48 @@ function showRoles(roleScores){
     }
 
     document.getElementById("roles").innerHTML = html;
+}
+
+
+function downloadReport() {
+
+    fetch("/download_report", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(currentData)
+    })
+
+    .then(response => {
+
+        if (!response.ok) {
+            throw new Error("PDF generation failed");
+        }
+
+        return response.blob();
+    })
+
+    .then(blob => {
+
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+
+        a.href = url;
+        a.download = "AI_Placement_Report.pdf";
+
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+    })
+
+    .catch(error => {
+
+        console.error(error);
+
+        alert("PDF download failed");
+    });
 }
 </script>
 </body>
