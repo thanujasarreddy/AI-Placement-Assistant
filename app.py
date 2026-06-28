@@ -1,4 +1,3 @@
-import os
 import io
 import tempfile
 import numpy as np
@@ -25,7 +24,16 @@ from utils import (
     get_resume_suggestions,
     get_job_recommendations
 )
+import requests
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+
+ADZUNA_APP_ID = os.getenv("ADZUNA_APP_ID")
+ADZUNA_API_KEY = os.getenv("ADZUNA_API_KEY")
+print("APP ID:", ADZUNA_APP_ID)
+print("API KEY:", ADZUNA_API_KEY)
 app = Flask(__name__)
 app.secret_key = "ai_placement_secret_key"
 
@@ -43,8 +51,14 @@ def upload_page():
 # ================= RESUME ANALYSIS =================
 @app.route("/upload_pdf", methods=["POST"])
 def upload_pdf():
-    if "user_id" not in session:
-        return jsonify({"error": "Please login first"}), 401
+
+    
+    from flask import jsonify
+    
+
+    
+
+        
 
     file = request.files["file"]
 
@@ -56,27 +70,109 @@ def upload_pdf():
         return jsonify({"error": "Only PDF/DOCX supported"}), 400
 
     skills = extract_skills(resume_text)
-    job_role, role_scores = predict_job_role(skills)
     score = calculate_resume_score(skills)
+    job_role, role_scores = predict_job_role(skills)
     questions = generate_interview_questions(skills, job_role)
     suggestions = get_resume_suggestions(skills)
-    jobs = get_job_recommendations(job_role, skills)
+    job_recommendations = get_jobs(job_role,skills)
+    resume_skills = [s.lower() for s in skills]
+    
+    for job in job_recommendations:
+
+        title = job["title"].lower()
+
+        if "frontend" in title:
+
+            required_skills = [
+                "HTML",
+                "CSS",
+                "JavaScript",
+                "React",
+                "TypeScript"
+            ]
+
+        elif "backend" in title:
+
+            required_skills = [
+                "Python",
+                "Flask",
+                "Django",
+                "SQL",
+                "REST API"
+            ]
+
+        else:
+
+            required_skills = [
+                "Python",
+                "SQL"
+            ]
+
+        missing_skills = []
+
+        for skill in required_skills:
+
+            if skill.lower() not in resume_skills:
+                missing_skills.append(skill)
+
+        job["required_skills"] = required_skills
+        job["missing_skills"] = missing_skills
+    
+
+    
+
+    job["required_skills"] = required_skills
+    job["missing_skills"] = missing_skills
     print("UPLOAD SUCCESS")
     print(job_role)
     print(score)
     print(skills)
     print(session["user_id"])
     print("SKILLS:", skills)
+    print("JOBS FROM ADZUNA:", job_recommendations)
+    print(job_recommendations)
     save_resume(job_role, score, skills, session["user_id"])
+    
     return jsonify({
+        "status": "success",
         "skills_found": skills,
-        "predicted_role": job_role,
         "resume_score": score,
         "role_scores": role_scores,
+        "predicted_role": job_role,
+        "job_recommendations": job_recommendations,
         "interview_questions": questions,
-        "resume_suggestions": suggestions,
-        "job_recommendations": jobs
+        "resume_suggestions": suggestions
     })
+def get_jobs(role,skills):
+    app_id = os.getenv("ADZUNA_APP_ID")
+    api_key = os.getenv("ADZUNA_API_KEY")
+    url = f"https://api.adzuna.com/v1/api/jobs/in/search/1"
+
+    params = {
+        "app_id": app_id,
+        "app_key": api_key,
+        "what": role,
+        "results_per_page": 10
+    }
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    jobs = []
+
+    for job in data.get("results", []):
+        jobs.append({
+            "title": job.get("title"),
+            "company": job.get("company", {}).get("display_name"),
+            "location": job.get("location", {}).get("display_name"),
+            "salary": job.get("salary_max") or job.get("salary_min") or "Not specified",
+            "required_skills": [...],
+            "missing_skills": [...]
+        })
+    print("JOBS WITH SKILLS:", jobs)
+    print(jobs)
+    return jobs
+
 
 
 # ================= ATS GAUGE (IMAGE) =================
@@ -100,11 +196,17 @@ def generate_ats_gauge(score):
 def download_report():
 
     data = request.get_json()
+    print(data)
+    predicted_role = data.get("predicted_role", "")
+    resume_score = data.get("resume_score", 0)
 
-    role = data.get("predicted_role", "N/A")
-    score = int(data.get("resume_score", 0))
-    skills = data.get("skills_found", [])
-    suggestions = data.get("resume_suggestions", [])
+    skills_found = data.get("skills_found", [])
+    role_scores = data.get("role_scores", {})
+
+
+    job_recommendations = data.get("job_recommendations", [])
+    interview_questions = data.get("interview_questions", [])
+    resume_suggestions = data.get("resume_suggestions", [])
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer)
@@ -119,12 +221,15 @@ def download_report():
     # ================= TITLE =================
     content.append(Paragraph("AI PLACEMENT ANALYSIS REPORT", title))
     content.append(Spacer(1, 10))
+ 
+ 
 
+    
     # ================= SCORE BADGE =================
-    level = "EXCELLENT" if score >= 75 else "GOOD" if score >= 50 else "NEEDS IMPROVEMENT"
-    color = colors.green if score >= 75 else colors.orange if score >= 50 else colors.red
+    level = "EXCELLENT" if resume_score >= 75 else "GOOD" if resume_score >= 50 else "NEEDS IMPROVEMENT"
+    color = colors.green if resume_score >= 75 else colors.orange if resume_score >= 50 else colors.red
 
-    badge = Table([[f"Score: {score}% | {level}"]], colWidths=[500])
+    badge = Table([[f"Score: {resume_score}% | {level}"]], colWidths=[500])
     badge.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), color),
         ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
@@ -136,19 +241,43 @@ def download_report():
 
     content.append(badge)
     content.append(Spacer(1, 15))
+    # ================= ATS SCORE GAUGE =================
 
-    # ================= ATS GAUGE =================
-    ats_path = generate_ats_gauge(score)
-    content.append(Paragraph("ATS SCORE GAUGE", h2))
-    content.append(Image(ats_path, width=350, height=150))
+    chart_path = os.path.join(tempfile.gettempdir(), "ats_gauge.png")
+
+    fig, ax = plt.subplots(figsize=(4,4))
+
+    ax.pie(
+        [resume_score, 100 - resume_score],
+        startangle=90,
+        colors=["green", "lightgray"],
+        wedgeprops={"width":0.3}
+    )
+
+    ax.text(
+        0,
+        0,
+        f"{resume_score}%",
+        ha="center",
+        va="center",
+        fontsize=20,
+        fontweight="bold"
+    )
+
+    plt.savefig(chart_path, bbox_inches="tight")
+    plt.close()
+
+    content.append(Paragraph("ATS SCORE", h2))
+    content.append(Image(chart_path, width=180, height=180))
     content.append(Spacer(1, 15))
+
 
     # ================= SUMMARY TABLE =================
     summary = [
         ["Field", "Details"],
-        ["Role", role],
-        ["Score", f"{score}%"],
-        ["Skills", str(len(skills))]
+        ["Role", predicted_role],
+        ["Score", f"{resume_score}%"],
+        ["Skills", str(len(skills_found))]
     ]
 
     table = Table(summary, colWidths=[200, 300])
@@ -162,11 +291,23 @@ def download_report():
 
     content.append(table)
     content.append(Spacer(1, 15))
+    content.append(Paragraph("ROLE PROBABILITY", h2))
+    content.append(Spacer(1, 5))
 
+    for role, score in role_scores.items():
+  
+        content.append(
+            Paragraph(
+                f"{role} : {score}%",
+                normal
+            )
+        )
+
+    content.append(Spacer(1, 15))
     # ================= SKILLS =================
     content.append(Paragraph("SKILLS", h2))
     content.append(Spacer(1, 5))
-    content.append(Paragraph(" • ".join(skills), normal))
+    content.append(Paragraph(" • ".join(skills_found), normal))
     content.append(Spacer(1, 15))
 
     # ================= SKILL FREQUENCY =================
@@ -188,7 +329,7 @@ def download_report():
     labels = []
     values = []
 
-    for skill in skills:
+    for skill in skills_found:
         s = skill.lower()
         labels.append(s)
         values.append(skill_weights.get(s, 1))
@@ -206,23 +347,28 @@ def download_report():
     plt.close()
 
     # ================= BAR CHART =================
-    bar_path = os.path.join(tempfile.gettempdir(), "bar.png")
-    plt.figure()
-    plt.bar(labels, values)
-    plt.title("Skill Frequency")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(bar_path)
-    plt.close()
+   
 
     # ================= RADAR CHART =================
     skill_groups = {
-        "Frontend": ["html", "css", "javascript", "react"],
-        "Backend": ["python", "java", "flask", "django", "sql"],
-        "AI/Data": ["ai", "machine learning", "data science"]
+        "Frontend Developer": ["html","css","javascript","react"],
+
+        "Backend Developer": ["python","flask","django","sql"],
+
+        "Data Scientist": ["python","machine learning","pandas","numpy"],
+
+        "Full Stack Developer": ["html","css","javascript","react","python","sql"],
+
+        "AI Engineer": ["python","machine learning","deep learning","tensorflow"],
+
+        "Java Developer": ["java","spring","hibernate"],
+
+        "Data Analyst": ["sql","excel","power bi","tableau"],
+
+        "Cloud Engineer": ["aws","azure","docker","kubernetes"]
     }
 
-    skills_lower = [s.lower() for s in skills]
+    skills_lower = [s.lower() for s in skills_found]
 
     radar_labels = list(skill_groups.keys())
     radar_values = []
@@ -239,34 +385,111 @@ def download_report():
     radar_values += radar_values[:1]
     angles += angles[:1]
 
-    plt.figure()
-    ax = plt.subplot(111, polar=True)
-    ax.plot(angles, radar_values)
-    ax.fill(angles, radar_values, alpha=0.3)
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(radar_labels)
-    plt.title("Skill Balance Radar")
-    plt.savefig(radar_path)
-    plt.close()
+    
 
     # ================= ADD IMAGES =================
     content.append(Paragraph("VISUAL ANALYSIS", h2))
+    #content.append(Image(chart_path, width=120, height=120))
     content.append(Image(pie_path, width=250, height=250))
-    content.append(Image(bar_path, width=300, height=200))
-    content.append(Image(radar_path, width=300, height=250))
+    #content.append(Image(bar_path, width=300, height=200))
+    #content.append(Image(radar_path, width=300, height=250))
+    content.append(Paragraph("JOB SUGGESTIONS",h2))
+    for job in job_recommendations:
+
+        title = job.get("title", "")
+        company = job.get("company", "")
+        location = job.get("location", "")
+        salary = job.get("salary", "Not specified")
+
+        required_skills = ", ".join(
+            job.get("required_skills", [])
+        )
+
+        missing_skills = ", ".join(
+            job.get("missing_skills", [])
+        )
+
+        content.append(
+            Paragraph(
+                f"<b>{title}</b>",
+                normal
+            )
+        )
+
+        content.append(
+            Paragraph(
+                f"Company: {company}",
+                normal
+            )
+        )
+
+        content.append(
+            Paragraph(
+                f"Location: {location}",
+                normal
+            )
+        )
+
+        content.append(
+            Paragraph(
+                f"Salary: {salary}",
+                normal
+            )
+        )
+
+        content.append(
+            Paragraph(
+                f"Required Skills: {required_skills}",
+                normal
+            )
+        )
+
+        content.append(
+            Paragraph(
+                f"Missing Skills: {missing_skills}",
+                normal
+            )
+        )
+
+        content.append(Spacer(1,10))
+    content.append(Paragraph("INTERVIEW QUESTIONS", h2))
+    content.append(Spacer(1, 5))
+
+    for q in interview_questions:
+        content.append(Paragraph("• " + q, normal))
+
+    content.append(Spacer(1, 15))
+
+
+
 
     # ================= SUGGESTIONS =================
     content.append(Paragraph("IMPROVEMENT PLAN", h2))
-    for s in suggestions:
+    for s in resume_suggestions:
         content.append(Paragraph("• " + s, normal))
     
+    content.append(Spacer(1, 40))
 
+    content.append(
+        Paragraph(
+            "<para align='center'><font size='15'><b>Thank You</b></font></para>",
+            normal
+        )
+    )
+
+    content.append(
+        Paragraph(
+            "<para align='center'>Generated by AI Placement Assistant</para>",
+            
+            normal
+        )
+    )
     # ================= BUILD PDF =================
     doc.build(content)
     buffer.seek(0)
 
     # cleanup
-    for f in [pie_path, bar_path, radar_path, ats_path]:
+    for f in [chart_path, pie_path]:
         if os.path.exists(f):
             os.remove(f)
 
@@ -448,14 +671,6 @@ def ats_match(resume_skills, job_description):
 
     jd = job_description.lower()
 
-    matched = []
-    missing = []
-
-    for skill in resume_skills:
-
-        if skill.lower() in jd:
-            matched.append(skill)
-
     common_skills = [
         "python", "java", "sql",
         "html", "css", "javascript",
@@ -464,20 +679,30 @@ def ats_match(resume_skills, job_description):
         "ai", "data science"
     ]
 
-    for skill in common_skills:
+    # Skills required by the job description
+    jd_skills = []
 
-        if skill in jd and skill not in [s.lower() for s in resume_skills]:
+    for skill in common_skills:
+        if skill in jd:
+            jd_skills.append(skill)
+
+    matched = []
+    missing = []
+
+    resume_lower = [s.lower() for s in resume_skills]
+
+    for skill in jd_skills:
+
+        if skill in resume_lower:
+            matched.append(skill)
+        else:
             missing.append(skill)
 
-    score = 0
+    # If no recognizable skills are found in JD
+    if len(jd_skills) == 0:
+        return 0, [], ["No technical skills found in Job Description"]
 
-    if len(matched) + len(missing) > 0:
-        score = int(
-            len(matched)
-            /
-            (len(matched) + len(missing))
-            * 100
-        )
+    score = int((len(matched) / len(jd_skills)) * 100)
 
     return score, matched, missing
 @app.route("/ats_page")
@@ -488,4 +713,4 @@ def ats_page():
 # ================= RUN =================
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    app.run(debug=True,use_reloader=False)
